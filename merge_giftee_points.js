@@ -112,8 +112,8 @@ async function waitAfterDirect(page, timeout = 15000) {
 }
 
 async function main() {
-  const input = arg("input", path.join(ROOT, "point_links_con_sot_moi.txt"));
-  const output = arg("output", path.join(ROOT, "giftee_left_direct_results.csv"));
+  const input = arg("input", path.join(ROOT, "pending_giftee_links.txt"));
+  const output = arg("output", path.join(ROOT, "wallet_merge_results.csv"));
   const start = Number(arg("start", "1"));
   const limit = Number(arg("limit", "1"));
   const waitMs = Number(arg("wait", "6500"));

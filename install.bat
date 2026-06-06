@@ -12,7 +12,7 @@ npm install
 if errorlevel 1 goto error
 
 echo.
-echo Done. Run run_giftee_desktop_tool_qt.bat to start the app.
+echo Done. Run run_tool.bat to start the app.
 pause
 exit /b 0
 

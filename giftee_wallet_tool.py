@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 import json
 import os
 import subprocess
@@ -357,9 +357,9 @@ class GifteeQtTool(QMainWindow):
         return sidebar
 
     def _init_hidden_check_fields(self):
-        self.check_input = FilePicker("File link can kiem tra", str(ROOT / "giftee-links-904.txt"))
-        self.check_csv = FilePicker("CSV ket qua", str(ROOT / "tl_app_giftee_check.csv"), "save", "CSV files (*.csv);;All files (*.*)")
-        self.check_left = FilePicker("File link con sot", str(ROOT / "tl_app_links_chua_nap.txt"), "save")
+        self.check_input = FilePicker("Input links", str(ROOT / "input_giftee_links.txt"))
+        self.check_csv = FilePicker("Scan results", str(ROOT / "giftee_scan_results.csv"), "save", "CSV files (*.csv);;All files (*.*)")
+        self.check_left = FilePicker("Pending links", str(ROOT / "pending_giftee_links.txt"), "save")
         for widget in [self.check_input, self.check_csv, self.check_left]:
             widget.hide()
 
@@ -380,10 +380,10 @@ class GifteeQtTool(QMainWindow):
         login_btn.clicked.connect(self.open_tl_app_chrome)
         self.today_btn = QPushButton("Lấy link hôm nay")
         self.today_btn.setObjectName("primaryButton")
-        self.today_btn.clicked.connect(lambda: self.run_fetch_tl_app_links("today"))
+        self.today_btn.clicked.connect(lambda: self.run_scan_history("today"))
         self.all_btn = QPushButton("Scan tất cả link")
         self.all_btn.setObjectName("secondaryButton")
-        self.all_btn.clicked.connect(lambda: self.run_fetch_tl_app_links("all"))
+        self.all_btn.clicked.connect(lambda: self.run_scan_history("all"))
         open_btn = QPushButton("Mở thư mục")
         open_btn.setObjectName("secondaryButton")
         open_btn.clicked.connect(self.open_root)
@@ -391,34 +391,6 @@ class GifteeQtTool(QMainWindow):
             btn.setMinimumWidth(0)
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             row.addWidget(btn)
-        card.body.addLayout(row)
-        layout.addWidget(card)
-        return page
-
-    def _build_check_page(self):
-        page = QWidget()
-        page.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(14)
-
-        card = ActionCard("Kiểm tra link còn sót")
-        self.check_input = FilePicker("File link cần kiểm tra", str(ROOT / "giftee-links-904.txt"))
-        self.check_csv = FilePicker("CSV kết quả", str(ROOT / "point_links_kiem_tra_gui.csv"), "save", "CSV files (*.csv);;All files (*.*)")
-        self.check_left = FilePicker("File link còn sót", str(ROOT / "point_links_con_sot_gui.txt"), "save")
-        card.body.addWidget(self.check_input)
-        card.body.addWidget(self.check_csv)
-        card.body.addWidget(self.check_left)
-        row = QHBoxLayout()
-        self.check_button = QPushButton("Kiểm tra link còn sót")
-        self.check_button.setObjectName("primaryButton")
-        self.check_button.clicked.connect(self.run_check)
-        open_btn = QPushButton("Mở thư mục")
-        open_btn.setObjectName("secondaryButton")
-        open_btn.clicked.connect(self.open_root)
-        row.addWidget(self.check_button)
-        row.addWidget(open_btn)
-        row.addStretch()
         card.body.addLayout(row)
         layout.addWidget(card)
         return page
@@ -431,12 +403,12 @@ class GifteeQtTool(QMainWindow):
         layout.setSpacing(14)
 
         card = ActionCard("Nạp link vào ví")
-        self.merge_input = FilePicker("File link chưa nạp", str(ROOT / "tl_app_links_chua_nap.txt"))
+        self.merge_input = FilePicker("File link chờ nạp", str(ROOT / "pending_giftee_links.txt"))
         card.body.addWidget(self.merge_input)
 
         row = QHBoxLayout()
         row.setSpacing(8)
-        self.merge_button = QPushButton("Nạp toàn bộ link")
+        self.merge_button = QPushButton("Nạp point vào ví")
         self.merge_button.setObjectName("primaryButton")
         self.merge_button.clicked.connect(self.run_merge)
         stop_btn = QPushButton("Dừng")
@@ -505,7 +477,7 @@ class GifteeQtTool(QMainWindow):
         f_layout.setContentsMargins(14, 14, 14, 14)
         f_layout.setSpacing(8)
         f_layout.addWidget(QLabel("Kết quả tự lưu", objectName="sideTitle"))
-        for text in ["tl_app_giftee_check.csv", "tl_app_links_chua_nap.txt", "giftee_left_direct_results_gui.csv"]:
+        for text in ["giftee_scan_results.csv", "pending_giftee_links.txt", "wallet_merge_results.csv"]:
             label = QLabel(text)
             label.setObjectName("fileChip")
             f_layout.addWidget(label)
@@ -520,29 +492,24 @@ class GifteeQtTool(QMainWindow):
         titles = ["Lấy link từ TL-APP", "Nạp point vào Gift Wallet"]
         self.header_title.setText(titles[index])
 
-    def run_check(self):
-        script = ROOT / "check_giftee_links_904.js"
-        cmd = [NODE, str(script), self.check_input.text(), self.check_csv.text(), self.check_left.text()]
-        self.start_process(cmd, "CHECK")
-
-    def run_fetch_tl_app_links(self, date_mode):
+    def run_scan_history(self, date_mode):
         if self.process and self.process.state() != QProcess.NotRunning:
-            QMessageBox.warning(self, "Dang chay", "Mot tien trinh dang chay. Hay dung hoac cho xong.")
+            QMessageBox.warning(self, "Đang chạy", "Một tiến trình đang chạy. Hãy dừng hoặc chờ xong.")
             return
         if self.tl_check_process and self.tl_check_process.state() != QProcess.NotRunning:
             return
 
-        script = ROOT / "check_tl_app_login.js"
+        script = ROOT / "verify_tl_app_session.js"
         if not script.exists():
-            QMessageBox.warning(self, "Thieu script", f"Khong tim thay {script}")
+            QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return
 
         self.pending_tl_date_mode = date_mode
         self.update_scan_buttons(date_mode)
         self.progress.setRange(0, 0)
-        self.status_label.setText("Dang check TL-APP")
-        self.detail_label.setText("Kiem tra session TL-APP trong giftee_chrome_profile...")
-        self.log.appendPlainText("\n=== TL_APP LOGIN CHECK START ===")
+        self.status_label.setText("Đang kiểm tra TL-APP")
+        self.detail_label.setText("Kiểm tra session TL-APP trong chrome profile local...")
+        self.log.appendPlainText("\n=== VERIFY_TL_APP_SESSION START ===")
 
         self.tl_check_process = QProcess(self)
         self.tl_check_process.setWorkingDirectory(str(ROOT))
@@ -550,29 +517,6 @@ class GifteeQtTool(QMainWindow):
         self.tl_check_process.finished.connect(self.tl_app_login_check_finished)
         self.tl_check_process.start(NODE, [str(script), "--profile", str(PROFILE_DIR)])
         return
-        if not self.check_tl_app_login(show_success=False):
-            QMessageBox.warning(
-                self,
-                "TL-APP chưa login",
-                "Chưa thấy session TL-APP trong profile chung. Mình sẽ mở Chrome để bạn login. Login xong quay lại bấm lấy link lại.",
-            )
-            self.open_tl_app_chrome()
-            return
-        script = ROOT / "fetch_tl_app_links.js"
-        output = Path(self.tl_output.text())
-        csv_output = output.with_suffix(".csv")
-        cmd = [
-            NODE,
-            str(script),
-            "--date",
-            date_mode,
-            "--output",
-            str(output),
-            "--csv",
-            str(csv_output),
-        ]
-        self.total_hint = 0
-        self.start_process(cmd, "FETCH_TL_APP")
 
     def update_scan_buttons(self, date_mode):
         if not hasattr(self, "today_btn") or not hasattr(self, "all_btn"):
@@ -596,13 +540,13 @@ class GifteeQtTool(QMainWindow):
             data = {"loggedIn": False, "note": "ERROR", "error": raw}
 
         if not data.get("loggedIn"):
-            self.status_label.setText("TL-APP chua login")
-            self.detail_label.setText(data.get("note") or data.get("error") or "Can login TL-APP truoc khi lay link.")
+            self.status_label.setText("TL-APP chưa login")
+            self.detail_label.setText(data.get("note") or data.get("error") or "Cần login TL-APP trước khi scan.")
             self.log.appendPlainText(f"TL-APP login check: NOT_LOGGED_IN {data.get('error', '')}")
             QMessageBox.warning(
                 self,
-                "TL-APP chua login",
-                "Chua thay session TL-APP trong profile chung. Minh se mo Chrome de ban login. Login xong quay lai bam lay link lai.",
+                "TL-APP chưa login",
+                "Chưa thấy session TL-APP trong profile local. Tool sẽ mở Chrome để bạn login. Login xong quay lại bấm scan lại.",
             )
             self.open_tl_app_chrome()
             return
@@ -614,13 +558,13 @@ class GifteeQtTool(QMainWindow):
             detail = f"{username} | {detail}"
         if points not in ("", None):
             detail = f"{detail} | {points} points"
-        self.status_label.setText("TL-APP da login")
+        self.status_label.setText("TL-APP đã login")
         self.detail_label.setText(detail)
         self.log.appendPlainText(f"TL-APP login check: LOGGED_IN {username}".rstrip())
-        self._start_fetch_tl_app_links(self.pending_tl_date_mode or "today")
+        self._start_history_scan(self.pending_tl_date_mode or "today")
 
-    def _start_fetch_tl_app_links(self, date_mode):
-        script = ROOT / "fetch_tl_app_links.js"
+    def _start_history_scan(self, date_mode):
+        script = ROOT / "scan_tl_app_history.js"
         output = Path(self.tl_output.text())
         csv_output = output.with_suffix(".csv")
         cmd = [
@@ -634,19 +578,26 @@ class GifteeQtTool(QMainWindow):
             str(csv_output),
         ]
         self.total_hint = 0
-        self.start_process(cmd, "FETCH_TL_APP")
+        self.start_process(cmd, "SCAN_HISTORY")
 
     def run_merge(self):
-        tl_left = ROOT / "tl_app_links_chua_nap.txt"
+        tl_left = ROOT / "pending_giftee_links.txt"
         if tl_left.exists():
             self.merge_input.edit.setText(str(tl_left))
+        elif Path(self.merge_input.text()).name == "pending_giftee_links.txt":
+            QMessageBox.information(
+                self,
+                "Chưa có danh sách chờ nạp",
+                "Chưa có file pending_giftee_links.txt. Hãy scan TL-APP trước, tool sẽ tự tạo file này sau khi kiểm tra link.",
+            )
+            return
         left_count = self._count_links(self.merge_input.text(), 1, 0)
         if left_count == 0:
-            QMessageBox.information(self, "Khong co link can nap", "Danh sach link con sot dang trong. Hay scan TL-APP truoc, hoac chon file link chua nap khac.")
+            QMessageBox.information(self, "Không có link cần nạp", "Danh sách link chờ nạp đang trống. Hãy scan TL-APP trước hoặc chọn file pending links khác.")
             self.set_stats(self.total_card.value_label.text(), self.merged_card.value_label.text(), 0, 0)
             return
-        script = ROOT / "merge_giftee_left_direct.js"
-        output = ROOT / "giftee_left_direct_results_gui.csv"
+        script = ROOT / "merge_giftee_points.js"
+        output = ROOT / "wallet_merge_results.csv"
         cmd = [
             NODE,
             str(script),
@@ -665,7 +616,7 @@ class GifteeQtTool(QMainWindow):
             "--no-prompt",
         ]
         self.total_hint = left_count
-        self.start_process(cmd, "MERGE")
+        self.start_process(cmd, "MERGE_POINTS")
 
     def start_process(self, cmd, mode):
         if self.process and self.process.state() != QProcess.NotRunning:
@@ -700,36 +651,36 @@ class GifteeQtTool(QMainWindow):
         self.detail_label.setText("Xem log và file CSV đầu ra để kiểm tra chi tiết.")
         if code == 0:
             self.progress.setValue(100)
-            if finished_mode == "FETCH_TL_APP":
+            if finished_mode == "SCAN_HISTORY":
                 self.update_stats_from_tl_links(self.tl_output.text())
-            elif finished_mode in ("CHECK", "CHECK_TL_APP"):
+            elif finished_mode == "SCAN_GIFTEE":
                 self.update_stats_from_check_csv(self.check_csv.text())
-                if finished_mode == "CHECK_TL_APP":
-                    self.merge_input.edit.setText(str(ROOT / "tl_app_links_chua_nap.txt"))
-            elif finished_mode == "MERGE":
-                self.update_stats_from_merge_csv(ROOT / "giftee_left_direct_results_gui.csv")
+                self.merge_input.edit.setText(str(ROOT / "pending_giftee_links.txt"))
+            elif finished_mode == "MERGE_POINTS":
+                self.update_stats_from_merge_csv(ROOT / "wallet_merge_results.csv")
+                self.show_merge_summary(ROOT / "wallet_merge_results.csv")
         self.log.appendPlainText(f"=== {finished_mode} END code={code} ===")
-        if code == 0 and finished_mode == "FETCH_TL_APP":
+        if code == 0 and finished_mode == "SCAN_HISTORY":
             self.start_tl_app_auto_check()
 
     def start_tl_app_auto_check(self):
-        script = ROOT / "check_giftee_links_904.js"
+        script = ROOT / "scan_giftee_links.js"
         input_file = Path(self.tl_output.text())
-        out_csv = ROOT / "tl_app_giftee_check.csv"
-        out_left = ROOT / "tl_app_links_chua_nap.txt"
+        out_csv = ROOT / "giftee_scan_results.csv"
+        out_left = ROOT / "pending_giftee_links.txt"
         link_count = self._count_links(input_file, 1, 0)
         if not input_file.exists() or link_count == 0:
             self.set_stats(0, 0, 0, 0)
-            self.detail_label.setText("TL-APP khong co link hop le de kiem tra.")
+            self.detail_label.setText("TL-APP không có link hợp lệ để kiểm tra.")
             return
 
         self.check_csv.edit.setText(str(out_csv))
         self.check_left.edit.setText(str(out_left))
-        self.status_label.setText("Dang kiem tra link")
-        self.detail_label.setText("Da lay link TL-APP, dang kiem tra link nao da nap va con point...")
+        self.status_label.setText("Đang kiểm tra link")
+        self.detail_label.setText("Đã lấy link TL-APP, đang kiểm tra trạng thái point...")
         self.total_hint = link_count
         cmd = [NODE, str(script), str(input_file), str(out_csv), str(out_left)]
-        self.start_process(cmd, "CHECK_TL_APP")
+        self.start_process(cmd, "SCAN_GIFTEE")
 
     def stop_process(self):
         if self.process and self.process.state() != QProcess.NotRunning:
@@ -738,8 +689,8 @@ class GifteeQtTool(QMainWindow):
             self.log.appendPlainText("Requested stop.")
 
     def refresh_stats(self):
-        check_csv = Path(self.check_csv.text()) if hasattr(self, "check_csv") else ROOT / "point_links_kiem_tra_gui.csv"
-        fallback_csv = ROOT / "point_links_kiem_tra_moi.csv"
+        check_csv = Path(self.check_csv.text()) if hasattr(self, "check_csv") else ROOT / "giftee_scan_results.csv"
+        fallback_csv = ROOT / "giftee_scan_results.csv"
         if check_csv.exists():
             self.update_stats_from_check_csv(check_csv)
         elif fallback_csv.exists():
@@ -781,6 +732,50 @@ class GifteeQtTool(QMainWindow):
             self.set_stats(total, merged, left, points)
         except Exception as exc:
             self.log.appendPlainText(f"Stats error: {exc}")
+
+    def show_merge_summary(self, path):
+        try:
+            rows = self._read_csv_rows(path)
+        except Exception as exc:
+            QMessageBox.warning(self, "Không đọc được kết quả nạp", f"Không đọc được file kết quả:\n{path}\n\n{exc}")
+            return
+
+        total = len(rows)
+        merged = sum(1 for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
+        errors = sum(1 for row in rows if str(row.get("status", "")).upper() == "ERROR")
+        pending = total - merged - errors
+        initial_points = sum(self._to_int(row.get("initialPoint")) for row in rows)
+        output_name = Path(path).name
+
+        if errors or pending:
+            self.status_label.setText("Cần kiểm tra lại")
+            self.detail_label.setText(f"Đã nạp {merged}/{total} link. Còn {pending} pending, {errors} lỗi.")
+            QMessageBox.warning(
+                self,
+                "Nạp point chưa hoàn tất",
+                (
+                    f"Đã xử lý: {total} link\n"
+                    f"Đã nạp/đã có trong ví: {merged} link\n"
+                    f"Còn pending: {pending} link\n"
+                    f"Lỗi: {errors} link\n"
+                    f"Tổng point trong batch: {self._fmt_stat(initial_points)} JPY\n\n"
+                    f"File kết quả: {output_name}"
+                ),
+            )
+            return
+
+        self.status_label.setText("Nạp point hoàn tất")
+        self.detail_label.setText(f"Đã nạp/ghi nhận {merged}/{total} link vào Gift Wallet.")
+        QMessageBox.information(
+            self,
+            "Nạp point hoàn tất",
+            (
+                f"Đã xử lý: {total} link\n"
+                f"Đã nạp/đã có trong ví: {merged} link\n"
+                f"Tổng point trong batch: {self._fmt_stat(initial_points)} JPY\n\n"
+                f"File kết quả: {output_name}"
+            ),
+        )
 
     def _read_csv_rows(self, path):
         with Path(path).open("r", encoding="utf-8-sig", newline="") as fh:
@@ -839,7 +834,7 @@ class GifteeQtTool(QMainWindow):
         self.check_login(show_success=False, startup=True)
 
     def check_login(self, show_success=False, startup=False, dialog=None, profile_dir=PROFILE_DIR):
-        script = ROOT / "check_wallet_login.js"
+        script = ROOT / "verify_wallet_session.js"
         if not script.exists():
             QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return
@@ -889,10 +884,10 @@ class GifteeQtTool(QMainWindow):
                 "Chưa thấy session login. Bấm 'Mở Chrome login', login xong đóng Chrome rồi kiểm tra lại.",
             )
 
-    def check_tl_app_login(self, show_success=False):
-        script = ROOT / "check_tl_app_login.js"
+    def verify_tl_app_session(self, show_success=False):
+        script = ROOT / "verify_tl_app_session.js"
         if not script.exists():
-            QMessageBox.warning(self, "Thieu script", f"Khong tim thay {script}")
+            QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return False
 
         try:
@@ -921,21 +916,21 @@ class GifteeQtTool(QMainWindow):
                 detail = f"{username} | {detail}"
             if points not in ("", None):
                 detail = f"{detail} | {points} points"
-            self.status_label.setText("TL-APP da login")
+            self.status_label.setText("TL-APP đã login")
             self.detail_label.setText(detail)
             self.log.appendPlainText(f"TL-APP login check: LOGGED_IN {username}".rstrip())
             if show_success:
-                QMessageBox.information(self, "TL-APP da login", "Session TL-APP da san sang.")
+                QMessageBox.information(self, "TL-APP đã login", "Session TL-APP đã sẵn sàng.")
             return True
 
-        self.status_label.setText("TL-APP chua login")
-        self.detail_label.setText(data.get("note") or "Can login TL-APP trong Chrome profile chung truoc khi lay link.")
+        self.status_label.setText("TL-APP chưa login")
+        self.detail_label.setText(data.get("note") or "Cần login TL-APP trong Chrome profile local trước khi scan.")
         self.log.appendPlainText(f"TL-APP login check: NOT_LOGGED_IN {data.get('error', '')}")
         if show_success:
             QMessageBox.warning(
                 self,
-                "TL-APP chua login",
-                "Chua thay session TL-APP. Tool se dung chung giftee_chrome_profile, ban chi can login mot lan trong Chrome do.",
+                "TL-APP chưa login",
+                "Chưa thấy session TL-APP. Tool dùng chung chrome profile local, bạn chỉ cần login một lần trong Chrome đó.",
             )
         return False
 
@@ -1129,6 +1124,27 @@ class GifteeQtTool(QMainWindow):
                 border: 1px solid #fed7aa;
                 border-radius: 10px;
                 padding: 10px;
+            }
+            QMessageBox {
+                background: #f8fafc;
+            }
+            QMessageBox QLabel {
+                color: #18212f;
+                font-size: 13px;
+                line-height: 1.45;
+            }
+            QMessageBox QPushButton {
+                background: #0f766e;
+                color: #ffffff;
+                border: 1px solid #0f766e;
+                border-radius: 9px;
+                min-width: 86px;
+                min-height: 32px;
+                padding: 0 14px;
+                font-weight: 800;
+            }
+            QMessageBox QPushButton:hover {
+                background: #0d6a63;
             }
             """
         )

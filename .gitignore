@@ -14,7 +14,9 @@ tl_app_chrome_profile/
 *.log
 tl_app_links_today.txt
 tl_app_links_all.txt
-tl_app_links_chua_nap.txt
+pending_giftee_links.txt
+giftee_scan_results.csv
+wallet_merge_results.csv
 point_links_*.txt
 giftee-links-*.txt
 

@@ -1,9 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const INPUT = process.argv[2] || path.join(__dirname, "giftee-links-904.txt");
-const OUT_CSV = process.argv[3] || path.join(__dirname, "point_links_kiem_tra_moi.csv");
-const OUT_LEFT = process.argv[4] || path.join(__dirname, "point_links_con_sot_moi.txt");
+const INPUT = process.argv[2] || path.join(__dirname, "input_giftee_links.txt");
+const OUT_CSV = process.argv[3] || path.join(__dirname, "giftee_scan_results.csv");
+const OUT_LEFT = process.argv[4] || path.join(__dirname, "pending_giftee_links.txt");
 const URL_CODE_RE = /giftee_boxes\/([0-9a-fA-F-]+)/;
 
 const boxQuery = `query GetGifteeBox($urlCode: String!) {
