@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-python "%~dp0giftee_wallet_tool.py"
+python "%~dp0app\giftee_wallet_tool.py"
 
 echo.
 pause

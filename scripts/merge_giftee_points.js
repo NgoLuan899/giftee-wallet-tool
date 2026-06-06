@@ -3,7 +3,7 @@ const path = require("path");
 const readline = require("readline");
 const { chromium } = require("playwright-core");
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, "..");
 const CHROME_EXE = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PROFILE_DIR = path.join(ROOT, "giftee_chrome_profile");
 const URL_CODE_RE = /giftee_boxes\/([0-9a-fA-F-]+)/;

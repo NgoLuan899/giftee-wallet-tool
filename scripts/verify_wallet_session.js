@@ -1,7 +1,7 @@
 const path = require("path");
 const { chromium } = require("playwright-core");
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, "..");
 const CHROME_EXE = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 
 function arg(name, fallback = "") {

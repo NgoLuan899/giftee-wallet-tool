@@ -29,7 +29,8 @@ from PySide6.QtWidgets import (
 )
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = ROOT / "scripts"
 NODE = "node"
 CHROME_EXE = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 PROFILE_DIR = ROOT / "giftee_chrome_profile"
@@ -499,7 +500,7 @@ class GifteeQtTool(QMainWindow):
         if self.tl_check_process and self.tl_check_process.state() != QProcess.NotRunning:
             return
 
-        script = ROOT / "verify_tl_app_session.js"
+        script = SCRIPT_DIR / "verify_tl_app_session.js"
         if not script.exists():
             QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return
@@ -564,7 +565,7 @@ class GifteeQtTool(QMainWindow):
         self._start_history_scan(self.pending_tl_date_mode or "today")
 
     def _start_history_scan(self, date_mode):
-        script = ROOT / "scan_tl_app_history.js"
+        script = SCRIPT_DIR / "scan_tl_app_history.js"
         output = Path(self.tl_output.text())
         csv_output = output.with_suffix(".csv")
         cmd = [
@@ -596,7 +597,7 @@ class GifteeQtTool(QMainWindow):
             QMessageBox.information(self, "Không có link cần nạp", "Danh sách link chờ nạp đang trống. Hãy scan TL-APP trước hoặc chọn file pending links khác.")
             self.set_stats(self.total_card.value_label.text(), self.merged_card.value_label.text(), 0, 0)
             return
-        script = ROOT / "merge_giftee_points.js"
+        script = SCRIPT_DIR / "merge_giftee_points.js"
         output = ROOT / "wallet_merge_results.csv"
         cmd = [
             NODE,
@@ -664,7 +665,7 @@ class GifteeQtTool(QMainWindow):
             self.start_tl_app_auto_check()
 
     def start_tl_app_auto_check(self):
-        script = ROOT / "scan_giftee_links.js"
+        script = SCRIPT_DIR / "scan_giftee_links.js"
         input_file = Path(self.tl_output.text())
         out_csv = ROOT / "giftee_scan_results.csv"
         out_left = ROOT / "pending_giftee_links.txt"
@@ -834,7 +835,7 @@ class GifteeQtTool(QMainWindow):
         self.check_login(show_success=False, startup=True)
 
     def check_login(self, show_success=False, startup=False, dialog=None, profile_dir=PROFILE_DIR):
-        script = ROOT / "verify_wallet_session.js"
+        script = SCRIPT_DIR / "verify_wallet_session.js"
         if not script.exists():
             QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return
@@ -885,7 +886,7 @@ class GifteeQtTool(QMainWindow):
             )
 
     def verify_tl_app_session(self, show_success=False):
-        script = ROOT / "verify_tl_app_session.js"
+        script = SCRIPT_DIR / "verify_tl_app_session.js"
         if not script.exists():
             QMessageBox.warning(self, "Thiếu script", f"Không tìm thấy {script}")
             return False

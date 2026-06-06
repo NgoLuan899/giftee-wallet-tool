@@ -69,12 +69,12 @@ Các file này được tạo sau khi chạy scan/nạp, không cần có sẵn 
 
 ## File chính trong project
 
-- `giftee_wallet_tool.py`: giao diện desktop.
-- `scan_tl_app_history.js`: scan link từ lịch sử TL-APP.
-- `verify_tl_app_session.js`: kiểm tra session TL-APP.
-- `verify_wallet_session.js`: kiểm tra session Gift Wallet.
-- `scan_giftee_links.js`: kiểm tra trạng thái link Giftee.
-- `merge_giftee_points.js`: nạp point còn sót vào Gift Wallet.
+- `app/giftee_wallet_tool.py`: giao diện desktop.
+- `scripts/scan_tl_app_history.js`: scan link từ lịch sử TL-APP.
+- `scripts/verify_tl_app_session.js`: kiểm tra session TL-APP.
+- `scripts/verify_wallet_session.js`: kiểm tra session Gift Wallet.
+- `scripts/scan_giftee_links.js`: kiểm tra trạng thái link Giftee.
+- `scripts/merge_giftee_points.js`: nạp point còn sót vào Gift Wallet.
 
 ## Lưu ý bảo mật
 
