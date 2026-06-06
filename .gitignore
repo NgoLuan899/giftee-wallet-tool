@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+
+node_modules/
+package-lock.json
+
+# Local Chrome sessions. Do not commit login cookies/profile data.
+giftee_chrome_profile/
+giftee_chrome_profile_test_empty/
+tl_app_chrome_profile/
+
+# Runtime outputs.
+*.csv
+*.log
+tl_app_links_today.txt
+tl_app_links_all.txt
+tl_app_links_chua_nap.txt
+point_links_*.txt
+giftee-links-*.txt
+
+# Local/debug captures.
+tl_app_requests.json
+tl_app_requests_summary.txt
+wallet_click_requests.json
+giftee_simple_debug/

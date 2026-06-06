@@ -1,0 +1,13 @@
+{
+  "name": "giftee-wallet-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Desktop tool to scan TL-APP Giftee links and merge remaining Giftee points into Gift Wallet.",
+  "scripts": {
+    "start": "python giftee_desktop_tool_qt.py",
+    "check": "node --check check_giftee_links_904.js && node --check check_tl_app_login.js && node --check check_wallet_login.js && node --check fetch_tl_app_links.js && node --check merge_giftee_left_direct.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.60.0"
+  }
+}
