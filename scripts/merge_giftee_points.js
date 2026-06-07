@@ -165,6 +165,8 @@ async function main() {
     if (row.status === "ERROR") break;
     await sleep(gapMs + Math.floor(Math.random() * Math.max(1, gapMs)));
   }
+  console.log(`MERGE_SUMMARY processed=${links.length} output=${output}`);
+  await context.close();
 }
 
 main().catch((error) => {

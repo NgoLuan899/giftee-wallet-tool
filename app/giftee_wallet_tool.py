@@ -231,6 +231,7 @@ class GifteeQtTool(QMainWindow):
         self.current_mode = ""
         self.processed_count = 0
         self.total_hint = 0
+        self.merge_baseline = None
 
         self._build_ui()
         self._apply_style()
@@ -273,8 +274,8 @@ class GifteeQtTool(QMainWindow):
         stats.setVerticalSpacing(12)
         self.total_card = StatCard("Tổng link", "--", "links", "#0f766e")
         self.merged_card = StatCard("Đã nạp", "--", "links", "#2563eb")
-        self.left_card = StatCard("Còn sót", "--", "links", "#dc6b52")
-        self.point_card = StatCard("Point còn sót", "--", "JPY", "#b7791f")
+        self.left_card = StatCard("Chưa nạp", "--", "links", "#dc6b52")
+        self.point_card = StatCard("Tổng point", "--", "JPY", "#b7791f")
         for col, card in enumerate([self.total_card, self.merged_card, self.left_card, self.point_card]):
             stats.addWidget(card, 0, col)
         content_layout.addLayout(stats)
@@ -599,6 +600,14 @@ class GifteeQtTool(QMainWindow):
             return
         script = SCRIPT_DIR / "merge_giftee_points.js"
         output = ROOT / "wallet_merge_results.csv"
+        if output.exists():
+            output.unlink()
+        self.merge_baseline = {
+            "total": self._stat_int(self.total_card.value_label.text()),
+            "merged": self._stat_int(self.merged_card.value_label.text()),
+            "left": self._stat_int(self.left_card.value_label.text()),
+            "points": self._stat_int(self.point_card.value_label.text()),
+        }
         cmd = [
             NODE,
             str(script),
@@ -645,6 +654,8 @@ class GifteeQtTool(QMainWindow):
         if text:
             self.log.appendPlainText(text.rstrip())
             self._update_progress_from_text(text)
+            if self.current_mode == "MERGE_POINTS" and " -> " in text:
+                self.update_merge_stats_realtime(ROOT / "wallet_merge_results.csv")
 
     def process_finished(self, code, _status):
         finished_mode = self.current_mode
@@ -726,13 +737,43 @@ class GifteeQtTool(QMainWindow):
     def update_stats_from_merge_csv(self, path):
         try:
             rows = self._read_csv_rows(path)
-            total = len(rows)
             merged = sum(1 for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
-            left = total - merged
-            points = sum(self._to_int(row.get("point")) for row in rows if str(row.get("status", "")).upper() != "DA_NAP")
-            self.set_stats(total, merged, left, points)
+            if self.merge_baseline:
+                points_done = sum(self._to_int(row.get("initialPoint")) for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
+                total = self.merge_baseline["total"]
+                merged_total = self.merge_baseline["merged"] + merged
+                left = max(0, self.merge_baseline["left"] - merged)
+                points = max(0, self.merge_baseline["points"] - points_done)
+                self.set_stats(total, merged_total, left, points)
+            else:
+                total = len(rows)
+                left = total - merged
+                points = sum(self._to_int(row.get("point")) for row in rows if str(row.get("status", "")).upper() != "DA_NAP")
+                self.set_stats(total, merged, left, points)
         except Exception as exc:
             self.log.appendPlainText(f"Stats error: {exc}")
+
+    def update_merge_stats_realtime(self, path):
+        if not self.merge_baseline:
+            return
+        try:
+            rows = self._read_csv_rows(path)
+        except Exception:
+            return
+
+        successful = [row for row in rows if str(row.get("status", "")).upper() == "DA_NAP"]
+        errors = [row for row in rows if str(row.get("status", "")).upper() == "ERROR"]
+        merged_now = len(successful)
+        points_done = sum(self._to_int(row.get("initialPoint")) for row in successful)
+
+        total = self.merge_baseline["total"]
+        merged = self.merge_baseline["merged"] + merged_now
+        left = max(0, self.merge_baseline["left"] - merged_now)
+        points = max(0, self.merge_baseline["points"] - points_done)
+        self.set_stats(total, merged, left, points)
+        if errors:
+            self.status_label.setText("Cần kiểm tra lại")
+            self.detail_label.setText(f"Đã nạp {merged_now}/{self.total_hint} link. Có {len(errors)} lỗi.")
 
     def show_merge_summary(self, path):
         try:
@@ -787,6 +828,9 @@ class GifteeQtTool(QMainWindow):
             return int(float(str(value or "0").replace(",", "")))
         except Exception:
             return 0
+
+    def _stat_int(self, value):
+        return self._to_int(value)
 
     def _fmt_stat(self, value):
         if value in ("", None, "--"):
