@@ -119,15 +119,16 @@ async function main() {
   const waitMs = Number(arg("wait", "6500"));
   const gapMs = Number(arg("gap", "3000"));
   const noPrompt = hasFlag("no-prompt");
+  const headless = hasFlag("headless");
 
   let links = readLinks(input).slice(start - 1);
   if (limit > 0) links = links.slice(0, limit);
 
   const context = await chromium.launchPersistentContext(PROFILE_DIR, {
     executablePath: CHROME_EXE,
-    headless: false,
-    viewport: null,
-    args: ["--start-maximized"],
+    headless,
+    viewport: headless ? { width: 1280, height: 900 } : null,
+    args: headless ? [] : ["--window-size=720,760", "--window-position=1120,40"],
   });
   const page = context.pages()[0] || await context.newPage();
 

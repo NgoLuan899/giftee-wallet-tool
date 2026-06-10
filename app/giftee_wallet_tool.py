@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QFileDialog,
     QGridLayout,
+    QCheckBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -59,8 +60,8 @@ class StatCard(QFrame):
         super().__init__()
         self.setObjectName("statCard")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(8)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(7)
         title_label = QLabel(title)
         title_label.setObjectName("statTitle")
         row = QHBoxLayout()
@@ -276,8 +277,10 @@ class GifteeQtTool(QMainWindow):
         self.merged_card = StatCard("Đã nạp", "--", "links", "#2563eb")
         self.left_card = StatCard("Chưa nạp", "--", "links", "#dc6b52")
         self.point_card = StatCard("Tổng point", "--", "JPY", "#b7791f")
-        for col, card in enumerate([self.total_card, self.merged_card, self.left_card, self.point_card]):
-            stats.addWidget(card, 0, col)
+        self.merged_point_card = StatCard("Point đã nạp", "--", "JPY", "#7c3aed")
+        for index, card in enumerate([self.total_card, self.merged_card, self.left_card, self.point_card, self.merged_point_card]):
+            stats.addWidget(card, 0, index)
+            stats.setColumnStretch(index, 1)
         content_layout.addLayout(stats)
 
         work = QHBoxLayout()
@@ -286,7 +289,7 @@ class GifteeQtTool(QMainWindow):
 
         main_col = QVBoxLayout()
         main_col.setSpacing(14)
-        work.addLayout(main_col, 2)
+        work.addLayout(main_col, 3)
 
         self.stack = QStackedWidget()
         self._init_hidden_check_fields()
@@ -407,6 +410,9 @@ class GifteeQtTool(QMainWindow):
         card = ActionCard("Nạp link vào ví")
         self.merge_input = FilePicker("File link chờ nạp", str(ROOT / "pending_giftee_links.txt"))
         card.body.addWidget(self.merge_input)
+        self.headless_merge = QCheckBox("Chạy ẩn trình duyệt")
+        self.headless_merge.setObjectName("optionCheck")
+        card.body.addWidget(self.headless_merge)
 
         row = QHBoxLayout()
         row.setSpacing(8)
@@ -433,7 +439,7 @@ class GifteeQtTool(QMainWindow):
         panel = QVBoxLayout()
         wrap = QFrame()
         wrap.setObjectName("rightPanel")
-        wrap.setMinimumWidth(270)
+        wrap.setMinimumWidth(320)
         wrap.setLayout(panel)
         panel.setContentsMargins(16, 16, 16, 16)
         panel.setSpacing(14)
@@ -457,7 +463,7 @@ class GifteeQtTool(QMainWindow):
         panel.addWidget(progress_card)
 
         recent = QFrame()
-        recent.setObjectName("sideCard")
+        recent.setObjectName("statusCard")
         r_layout = QVBoxLayout(recent)
         r_layout.setContentsMargins(14, 14, 14, 14)
         r_layout.setSpacing(10)
@@ -482,6 +488,7 @@ class GifteeQtTool(QMainWindow):
         for text in ["giftee_scan_results.csv", "pending_giftee_links.txt", "wallet_merge_results.csv"]:
             label = QLabel(text)
             label.setObjectName("fileChip")
+            label.setToolTip(str(ROOT / text))
             f_layout.addWidget(label)
         panel.addWidget(files)
         panel.addStretch()
@@ -596,7 +603,7 @@ class GifteeQtTool(QMainWindow):
         left_count = self._count_links(self.merge_input.text(), 1, 0)
         if left_count == 0:
             QMessageBox.information(self, "Không có link cần nạp", "Danh sách link chờ nạp đang trống. Hãy scan TL-APP trước hoặc chọn file pending links khác.")
-            self.set_stats(self.total_card.value_label.text(), self.merged_card.value_label.text(), 0, 0)
+            self.set_stats(self.total_card.value_label.text(), self.merged_card.value_label.text(), 0, 0, self.merged_point_card.value_label.text())
             return
         script = SCRIPT_DIR / "merge_giftee_points.js"
         output = ROOT / "wallet_merge_results.csv"
@@ -607,6 +614,7 @@ class GifteeQtTool(QMainWindow):
             "merged": self._stat_int(self.merged_card.value_label.text()),
             "left": self._stat_int(self.left_card.value_label.text()),
             "points": self._stat_int(self.point_card.value_label.text()),
+            "merged_points": self._stat_int(self.merged_point_card.value_label.text()),
         }
         cmd = [
             NODE,
@@ -625,6 +633,8 @@ class GifteeQtTool(QMainWindow):
             "1000",
             "--no-prompt",
         ]
+        if self.headless_merge.isChecked():
+            cmd.append("--headless")
         self.total_hint = left_count
         self.start_process(cmd, "MERGE_POINTS")
 
@@ -654,6 +664,8 @@ class GifteeQtTool(QMainWindow):
         if text:
             self.log.appendPlainText(text.rstrip())
             self._update_progress_from_text(text)
+            if self.current_mode == "SCAN_GIFTEE" and "SCAN_PROGRESS" in text:
+                self.update_stats_from_check_csv(self.check_csv.text())
             if self.current_mode == "MERGE_POINTS" and " -> " in text:
                 self.update_merge_stats_realtime(ROOT / "wallet_merge_results.csv")
 
@@ -682,12 +694,15 @@ class GifteeQtTool(QMainWindow):
         out_left = ROOT / "pending_giftee_links.txt"
         link_count = self._count_links(input_file, 1, 0)
         if not input_file.exists() or link_count == 0:
-            self.set_stats(0, 0, 0, 0)
+            self.set_stats(0, 0, 0, 0, 0)
             self.detail_label.setText("TL-APP không có link hợp lệ để kiểm tra.")
             return
 
         self.check_csv.edit.setText(str(out_csv))
         self.check_left.edit.setText(str(out_left))
+        for old_file in [out_csv, out_left]:
+            if old_file.exists():
+                old_file.unlink()
         self.status_label.setText("Đang kiểm tra link")
         self.detail_label.setText("Đã lấy link TL-APP, đang kiểm tra trạng thái point...")
         self.total_hint = link_count
@@ -708,22 +723,26 @@ class GifteeQtTool(QMainWindow):
         elif fallback_csv.exists():
             self.update_stats_from_check_csv(fallback_csv)
         else:
-            self.set_stats("--", "--", "--", "--")
+            self.set_stats("--", "--", "--", "--", "--")
 
-    def set_stats(self, total, merged, left, points):
+    def set_stats(self, total, merged, left, points, merged_points="--"):
         self.total_card.set_value(self._fmt_stat(total), "links")
         self.merged_card.set_value(self._fmt_stat(merged), "links")
         self.left_card.set_value(self._fmt_stat(left), "links")
         self.point_card.set_value(self._fmt_stat(points), "JPY")
+        self.merged_point_card.set_value(self._fmt_stat(merged_points), "JPY")
 
     def update_stats_from_check_csv(self, path):
         try:
             rows = self._read_csv_rows(path)
+            if not rows and self.current_mode == "SCAN_GIFTEE":
+                return
             total = len(rows)
             merged = sum(1 for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
             left_rows = [row for row in rows if str(row.get("status", "")).upper() == "CHUA_NAP"]
             points = sum(self._to_int(row.get("point")) for row in left_rows)
-            self.set_stats(total, merged, len(left_rows), points)
+            merged_points = sum(self._to_int(row.get("initialPoint")) for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
+            self.set_stats(total, merged, len(left_rows), points, merged_points)
         except Exception as exc:
             self.log.appendPlainText(f"Stats error: {exc}")
 
@@ -733,6 +752,7 @@ class GifteeQtTool(QMainWindow):
         self.merged_card.set_value("--", "links")
         self.left_card.set_value("--", "links")
         self.point_card.set_value("--", "JPY")
+        self.merged_point_card.set_value("--", "JPY")
 
     def update_stats_from_merge_csv(self, path):
         try:
@@ -744,12 +764,14 @@ class GifteeQtTool(QMainWindow):
                 merged_total = self.merge_baseline["merged"] + merged
                 left = max(0, self.merge_baseline["left"] - merged)
                 points = max(0, self.merge_baseline["points"] - points_done)
-                self.set_stats(total, merged_total, left, points)
+                merged_points = self.merge_baseline["merged_points"] + points_done
+                self.set_stats(total, merged_total, left, points, merged_points)
             else:
                 total = len(rows)
                 left = total - merged
                 points = sum(self._to_int(row.get("point")) for row in rows if str(row.get("status", "")).upper() != "DA_NAP")
-                self.set_stats(total, merged, left, points)
+                merged_points = sum(self._to_int(row.get("initialPoint")) for row in rows if str(row.get("status", "")).upper() == "DA_NAP")
+                self.set_stats(total, merged, left, points, merged_points)
         except Exception as exc:
             self.log.appendPlainText(f"Stats error: {exc}")
 
@@ -770,7 +792,8 @@ class GifteeQtTool(QMainWindow):
         merged = self.merge_baseline["merged"] + merged_now
         left = max(0, self.merge_baseline["left"] - merged_now)
         points = max(0, self.merge_baseline["points"] - points_done)
-        self.set_stats(total, merged, left, points)
+        merged_points = self.merge_baseline["merged_points"] + points_done
+        self.set_stats(total, merged, left, points, merged_points)
         if errors:
             self.status_label.setText("Cần kiểm tra lại")
             self.detail_label.setText(f"Đã nạp {merged_now}/{self.total_hint} link. Có {len(errors)} lỗi.")
@@ -1063,17 +1086,39 @@ class GifteeQtTool(QMainWindow):
                 border-radius: 14px;
             }
             #pillText { color: #0f766e; font-weight: 700; }
-            #statCard, #actionCard, #sideCard {
+            #statCard, #actionCard, #sideCard, #statusCard {
                 background: #ffffff;
                 border: 1px solid #dce4ed;
                 border-radius: 16px;
             }
+            #statCard {
+                min-height: 78px;
+            }
             #statTitle { color: #667789; font-size: 12px; font-weight: 700; }
-            #statValue { color: #18212f; font-size: 25px; font-weight: 800; }
-            #statSuffix { color: #728295; padding-top: 7px; }
+            #statValue { color: #18212f; font-size: 22px; font-weight: 800; }
+            #statSuffix { color: #728295; padding-top: 6px; font-size: 11px; }
             #cardTitle { font-size: 18px; font-weight: 800; color: #18212f; }
             #cardSubtitle { color: #667789; line-height: 1.45; }
             #fieldLabel { color: #516173; font-weight: 700; font-size: 12px; }
+            #optionCheck {
+                color: #445365;
+                font-weight: 700;
+                spacing: 8px;
+            }
+            #optionCheck::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            #optionCheck::indicator:unchecked {
+                border: 1px solid #cfd9e4;
+                background: #ffffff;
+                border-radius: 4px;
+            }
+            #optionCheck::indicator:checked {
+                border: 1px solid #0f766e;
+                background: #0f766e;
+                border-radius: 4px;
+            }
             QLineEdit, QSpinBox {
                 background: #ffffff;
                 border: 1px solid #cfd9e4;
@@ -1115,15 +1160,20 @@ class GifteeQtTool(QMainWindow):
                 border: 1px solid #dce4ed;
                 border-radius: 18px;
             }
+            #statusCard {
+                background: #ecfdf5;
+                border: 1px solid #99e2c4;
+            }
             #sideTitle { font-size: 14px; font-weight: 800; color: #18212f; }
-            #statusBig { font-size: 20px; font-weight: 800; color: #0f766e; }
+            #statusBig { font-size: 22px; font-weight: 900; color: #04786d; }
             #mutedText { color: #667789; line-height: 1.45; }
             #fileChip {
                 background: #f4f7fb;
                 border: 1px solid #dce4ed;
                 border-radius: 9px;
-                padding: 9px;
+                padding: 8px;
                 color: #445365;
+                font-size: 12px;
             }
             QProgressBar {
                 height: 10px;

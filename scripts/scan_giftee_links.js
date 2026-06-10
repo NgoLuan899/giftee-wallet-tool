@@ -39,6 +39,29 @@ function csv(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
+const headers = [
+  "status",
+  "point",
+  "initialPoint",
+  "expiredAt",
+  "unsealed",
+  "giftWalletPointMerged",
+  "giftCount",
+  "giftWalletPointMergeable",
+  "link",
+  "error",
+];
+
+function writeOutputs(rows) {
+  fs.writeFileSync(
+    OUT_CSV,
+    "\ufeff" + headers.join(",") + "\n" + rows.map((row) => headers.map((h) => csv(row[h])).join(",")).join("\n") + "\n",
+    "utf8"
+  );
+  const left = rows.filter((row) => row.status === "CHUA_NAP" || row.status === "HET_HAN_CON_POINT");
+  fs.writeFileSync(OUT_LEFT, left.map((row) => row.link).join("\n") + (left.length ? "\n" : ""), "utf8");
+}
+
 function readLinks(file) {
   const links = fs
     .readFileSync(file, "utf8")
@@ -144,29 +167,10 @@ async function main() {
       });
       process.stdout.write(`[${i + 1}/${links.length}] ERROR ${String(error.message || error).slice(0, 120)}\n`);
     }
+    writeOutputs(rows);
+    process.stdout.write(`SCAN_PROGRESS ${rows.length}/${links.length}\n`);
     await new Promise((r) => setTimeout(r, 250));
   }
-
-  const headers = [
-    "status",
-    "point",
-    "initialPoint",
-    "expiredAt",
-    "unsealed",
-    "giftWalletPointMerged",
-    "giftCount",
-    "giftWalletPointMergeable",
-    "link",
-    "error",
-  ];
-  fs.writeFileSync(
-    OUT_CSV,
-    "\ufeff" + headers.join(",") + "\n" + rows.map((row) => headers.map((h) => csv(row[h])).join(",")).join("\n") + "\n",
-    "utf8"
-  );
-
-  const left = rows.filter((row) => row.status === "CHUA_NAP" || row.status === "HET_HAN_CON_POINT");
-  fs.writeFileSync(OUT_LEFT, left.map((row) => row.link).join("\n") + (left.length ? "\n" : ""), "utf8");
 
   const summary = rows.reduce((acc, row) => {
     acc[row.status] = acc[row.status] || { count: 0, point: 0, initialPoint: 0 };
